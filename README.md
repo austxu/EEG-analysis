@@ -61,9 +61,15 @@ Plots are saved to the `plots/` directory.
 
 ```
 eeg_project/
-├── main.py              # Synthetic EEG pipeline
-├── analyze_real_data.py # Real EEG pipeline
+├── eeg_denoising/           # Core Python package
+│   ├── __init__.py          # Config + re-exports
+│   ├── generation.py        # Synthetic signal generation
+│   ├── denoising.py         # SVD methods + traditional filters
+│   ├── metrics.py           # MSE, SNR, correlation
+│   └── plotting.py          # All visualization helpers
+├── main.py                  # Synthetic EEG pipeline (entry point)
+├── analyze_real_data.py     # Real EEG pipeline (entry point)
 ├── requirements.txt
 ├── README.md
-└── plots/               # Generated figures
+└── plots/                   # Generated figures
 ```

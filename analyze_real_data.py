@@ -1,5 +1,5 @@
 """
-EEG Denoising with SVD — Real EEG Pipeline
+EEG Denoising with SVD -- Real EEG Pipeline
 ============================================
 Loads real EEG from the PhysioNet BCI dataset, applies SVD-based denoising
 and traditional filters, then evaluates using proxy metrics (PSD analysis,
@@ -13,8 +13,8 @@ from scipy import signal as sig
 import mne
 from mne.datasets import eegbci
 
-# Reuse denoising functions from main.py
-from main import (
+from eeg_denoising import PLOTS_DIR
+from eeg_denoising.denoising import (
     svd_denoise_adaptive,
     multichannel_svd_denoise,
     sliding_window_svd,
@@ -22,13 +22,12 @@ from main import (
     notch_filter,
 )
 
-PLOTS_DIR = "plots"
 os.makedirs(PLOTS_DIR, exist_ok=True)
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ---------------------------------------------------------------------------
 #  Data Loading
-# ═══════════════════════════════════════════════════════════════════════════════
+# ---------------------------------------------------------------------------
 
 def load_physionet_eeg(subject=1, runs=[1]):
     """Fetch PhysioNet EEG BCI data and return raw MNE object + numpy arrays."""
@@ -44,9 +43,9 @@ def load_physionet_eeg(subject=1, runs=[1]):
     return data, fs, ch_names, raw
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ---------------------------------------------------------------------------
 #  Proxy Metrics (no ground truth)
-# ═══════════════════════════════════════════════════════════════════════════════
+# ---------------------------------------------------------------------------
 
 def band_power(x, fs, low, high):
     """Total power in [low, high] Hz via Welch."""
@@ -73,9 +72,9 @@ def alpha_beta_preservation(original, denoised, fs):
     return ab_after / ab_before
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ---------------------------------------------------------------------------
 #  Plotting
-# ═══════════════════════════════════════════════════════════════════════════════
+# ---------------------------------------------------------------------------
 
 def plot_real_time(t, signals, labels, title, fname):
     fig, ax = plt.subplots(figsize=(14, 4))
@@ -108,9 +107,9 @@ def plot_real_psd(signals, labels, fs, title, fname):
     print(f"  -> saved {fname}")
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ---------------------------------------------------------------------------
 #  Main
-# ═══════════════════════════════════════════════════════════════════════════════
+# ---------------------------------------------------------------------------
 
 def main():
     data, fs, ch_names, raw = load_physionet_eeg(subject=1, runs=[1])
@@ -124,7 +123,7 @@ def main():
     x = data[ch_idx]
     print(f"\nAnalysing channel: {ch_name}")
 
-    # ── Apply denoising methods ───────────────────────────────────────────────
+    # -- Apply denoising methods -----------------------------------------------
     print("\nApplying denoising methods ...")
 
     # 1. SVD adaptive (single-channel SSA)
@@ -144,7 +143,7 @@ def main():
     x_filt = notch_filter(bandpass_filter(x, fs=fs), fs=fs)
     print("  [4/4] Band-pass (1-40 Hz) + Notch (60 Hz)")
 
-    # ── Proxy Metrics ─────────────────────────────────────────────────────────
+    # -- Proxy Metrics ---------------------------------------------------------
     print("\nProxy Metrics (no ground truth):")
     methods = {
         "SVD adaptive": x_svd,
@@ -161,7 +160,7 @@ def main():
         abp = alpha_beta_preservation(x, denoised, fs)
         print(f"{name:<20} {plr:>20.2f} {abp:>18.4f}")
 
-    # ── Plots ─────────────────────────────────────────────────────────────────
+    # -- Plots -----------------------------------------------------------------
     print("\nGenerating plots ...")
 
     plot_real_time(
