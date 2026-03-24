@@ -224,7 +224,7 @@ def evaluate(true, noisy, denoised, label):
         "MSE": mse(true, denoised),
         "SNR (dB)": snr(true, denoised),
         "Correlation": correlation(true, denoised),
-        "ΔSNR (dB)": snr_improvement(true, noisy, denoised),
+        "dSNR (dB)": snr_improvement(true, noisy, denoised),
     }
 
 
@@ -245,7 +245,7 @@ def plot_time_comparison(t, signals, labels, title, fname):
     fig.tight_layout()
     fig.savefig(os.path.join(PLOTS_DIR, fname), dpi=150)
     plt.close(fig)
-    print(f"  → saved {fname}")
+    print(f"  -> saved {fname}")
 
 
 def plot_singular_values(S, title, fname, threshold=None):
@@ -261,7 +261,7 @@ def plot_singular_values(S, title, fname, threshold=None):
     fig.tight_layout()
     fig.savefig(os.path.join(PLOTS_DIR, fname), dpi=150)
     plt.close(fig)
-    print(f"  → saved {fname}")
+    print(f"  -> saved {fname}")
 
 
 def plot_psd_comparison(signals, labels, fs, title, fname):
@@ -278,24 +278,24 @@ def plot_psd_comparison(signals, labels, fs, title, fname):
     fig.tight_layout()
     fig.savefig(os.path.join(PLOTS_DIR, fname), dpi=150)
     plt.close(fig)
-    print(f"  → saved {fname}")
+    print(f"  -> saved {fname}")
 
 
 def plot_metrics_bar(results, fname):
     """Bar chart comparing MSE, SNR, Correlation across methods."""
     methods = [r["Method"] for r in results]
     fig, axes = plt.subplots(1, 4, figsize=(16, 4))
-    for ax, key in zip(axes, ["MSE", "SNR (dB)", "Correlation", "ΔSNR (dB)"]):
+    for ax, key in zip(axes, ["MSE", "SNR (dB)", "Correlation", "dSNR (dB)"]):
         vals = [r[key] for r in results]
         colors = plt.cm.viridis(np.linspace(0.2, 0.8, len(vals)))
         ax.bar(methods, vals, color=colors)
         ax.set_title(key)
         ax.tick_params(axis='x', rotation=30, labelsize=7)
-    fig.suptitle("Method Comparison — Synthetic EEG", fontsize=12, y=1.02)
+    fig.suptitle("Method Comparison - Synthetic EEG", fontsize=12, y=1.02)
     fig.tight_layout()
     fig.savefig(os.path.join(PLOTS_DIR, fname), dpi=150, bbox_inches="tight")
     plt.close(fig)
-    print(f"  → saved {fname}")
+    print(f"  -> saved {fname}")
 
 
 def plot_rank_sensitivity(true, noisy_signal, L=EMBED_DIM, fname="rank_sensitivity.png"):
@@ -324,7 +324,7 @@ def plot_rank_sensitivity(true, noisy_signal, L=EMBED_DIM, fname="rank_sensitivi
     fig.tight_layout()
     fig.savefig(os.path.join(PLOTS_DIR, fname), dpi=150)
     plt.close(fig)
-    print(f"  → saved {fname}")
+    print(f"  -> saved {fname}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -337,14 +337,14 @@ def main():
     t = np.linspace(0, DURATION, n_samples, endpoint=False)
 
     # ── Phase 2: Generate data ────────────────────────────────────────────────
-    print("Phase 2 — Generating synthetic EEG …")
+    print("Phase 2 -- Generating synthetic EEG ...")
     clean_multi, noisy_multi = generate_multichannel_eeg(t)
     # Use channel 0 for single-channel analyses
     s = clean_multi[0]
     x = noisy_multi[0]
 
     # ── Phase 3: Denoise ──────────────────────────────────────────────────────
-    print("Phase 3 — Applying denoising methods …")
+    print("Phase 3 -- Applying denoising methods ...")
 
     # 1. Fixed-k SSA (k=2)
     x_svd_fixed, S_fixed = svd_denoise_fixed_k(x, k=2)
@@ -365,34 +365,34 @@ def main():
 
     # 5. Band-pass filter
     x_bandpass = bandpass_filter(x)
-    print("  [5/6] Band-pass filter (1–40 Hz)")
+    print("  [5/6] Band-pass filter (1-40 Hz)")
 
     # 6. Notch filter
     x_notch = notch_filter(x)
     print("  [6/6] Notch filter (60 Hz)")
 
     # ── Phase 4: Evaluate ─────────────────────────────────────────────────────
-    print("\nPhase 4 — Computing metrics …")
+    print("\nPhase 4 -- Computing metrics ...")
     results = [
         evaluate(s, x, x,              "Noisy (raw)"),
         evaluate(s, x, x_svd_fixed,    "SVD fixed k=2"),
         evaluate(s, x, x_svd_adaptive, f"SVD adaptive k={k_auto}"),
         evaluate(s, x, x_mc,           f"Multi-ch SVD k={k_spatial}"),
         evaluate(s, x, x_sliding,      "Sliding-win SVD"),
-        evaluate(s, x, x_bandpass,     "Band-pass 1–40"),
+        evaluate(s, x, x_bandpass,     "Band-pass 1-40"),
         evaluate(s, x, x_notch,        "Notch 60 Hz"),
     ]
 
     # Print table
-    header = f"{'Method':<22} {'MSE':>8} {'SNR(dB)':>8} {'Corr':>8} {'ΔSNR(dB)':>9}"
+    header = f"{'Method':<22} {'MSE':>8} {'SNR(dB)':>8} {'Corr':>8} {'dSNR(dB)':>9}"
     print("\n" + header)
-    print("─" * len(header))
+    print("-" * len(header))
     for r in results:
         print(f"{r['Method']:<22} {r['MSE']:8.4f} {r['SNR (dB)']:8.2f} "
-              f"{r['Correlation']:8.4f} {r['ΔSNR (dB)']:9.2f}")
+              f"{r['Correlation']:8.4f} {r['dSNR (dB)']:9.2f}")
 
     # ── Plots ─────────────────────────────────────────────────────────────────
-    print("\nGenerating plots …")
+    print("\nGenerating plots ...")
 
     plot_time_comparison(
         t,
@@ -435,7 +435,7 @@ def main():
     # Rank-sensitivity
     plot_rank_sensitivity(s, x)
 
-    print("\n✓ All done.  Plots saved to:", os.path.abspath(PLOTS_DIR))
+    print("\n[DONE] All done.  Plots saved to:", os.path.abspath(PLOTS_DIR))
 
 
 if __name__ == "__main__":
