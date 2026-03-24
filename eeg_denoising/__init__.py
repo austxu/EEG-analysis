@@ -23,9 +23,11 @@ from .denoising import (
     svd_denoise_adaptive,
     multichannel_svd_denoise,
     sliding_window_svd,
+    svd_denoise_ml,
     bandpass_filter,
     notch_filter,
 )
+from .ml_helpers import train_svd_classifier, extract_component_features
 from .metrics import mse, snr, correlation, snr_improvement, evaluate
 from .plotting import (
     plot_time_comparison,

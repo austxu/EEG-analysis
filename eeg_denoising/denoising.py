@@ -130,6 +130,48 @@ def sliding_window_svd(x, fs=FS, window_sec=WINDOW_SEC, L=EMBED_DIM):
     return denoised
 
 
+def svd_denoise_ml(x, clf, fs=FS, L=EMBED_DIM, max_components=30):
+    """
+    ML-assisted SVD denoising.
+
+    Instead of keeping the top-k components by variance, a pre-trained
+    classifier inspects each reconstructed component and decides whether
+    it represents brain signal (keep) or artifact (drop).
+
+    Parameters
+    ----------
+    x   : 1-D signal
+    clf : trained sklearn classifier (from ml_helpers.train_svd_classifier)
+    fs  : sampling rate
+    L   : embedding dimension for Hankel matrix
+    max_components : max number of SVD components to evaluate
+    """
+    from .ml_helpers import extract_component_features
+
+    N = len(x)
+    H = build_hankel(x, L)
+    U, S, Vt = np.linalg.svd(H, full_matrices=False)
+
+    n_comp = min(max_components, len(S))
+    keep_mask = np.zeros(n_comp, dtype=bool)
+
+    for i in range(n_comp):
+        # Reconstruct the i-th component as a 1-D time series
+        H_i = np.outer(U[:, i], S[i] * Vt[i, :])
+        comp_i = reconstruct_from_hankel(H_i, N)
+        features = extract_component_features(comp_i, fs).reshape(1, -1)
+        pred = clf.predict(features)[0]
+        keep_mask[i] = (pred == 1)
+
+    # Ensure at least one component is kept
+    if not keep_mask.any():
+        keep_mask[0] = True
+
+    kept = np.where(keep_mask)[0]
+    H_clean = U[:, kept] @ np.diag(S[kept]) @ Vt[kept, :]
+    return reconstruct_from_hankel(H_clean, N), S, kept
+
+
 # ---------------------------------------------------------------------------
 #  Traditional filter baselines
 # ---------------------------------------------------------------------------

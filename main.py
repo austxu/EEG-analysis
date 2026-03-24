@@ -19,9 +19,11 @@ from eeg_denoising.denoising import (
     svd_denoise_adaptive,
     multichannel_svd_denoise,
     sliding_window_svd,
+    svd_denoise_ml,
     bandpass_filter,
     notch_filter,
 )
+from eeg_denoising.ml_helpers import train_svd_classifier
 from eeg_denoising.metrics import evaluate
 from eeg_denoising.plotting import (
     plot_time_comparison,
@@ -49,30 +51,38 @@ def main():
     # -- Phase 3: Denoise ------------------------------------------------------
     print("Phase 3 -- Applying denoising methods ...")
 
+    # Train ML classifier
+    print("  Training ML classifier ...")
+    clf = train_svd_classifier(fs=FS)
+
     # 1. Fixed-k SSA (k=2)
     x_svd_fixed, S_fixed = svd_denoise_fixed_k(x, k=2)
-    print("  [1/6] Fixed-k SVD (k=2)")
+    print("  [1/7] Fixed-k SVD (k=2)")
 
     # 2. Adaptive Gavish-Donoho SSA
     x_svd_adaptive, S_adapt, k_auto = svd_denoise_adaptive(x)
-    print(f"  [2/6] Adaptive SVD (auto k={k_auto})")
+    print(f"  [2/7] Adaptive SVD (auto k={k_auto})")
 
     # 3. Multi-channel spatial SVD
     noisy_mc_denoised, S_spatial, k_spatial = multichannel_svd_denoise(noisy_multi)
     x_mc = noisy_mc_denoised[0]
-    print(f"  [3/6] Multi-channel SVD (auto k={k_spatial})")
+    print(f"  [3/7] Multi-channel SVD (auto k={k_spatial})")
 
     # 4. Sliding-window SVD
     x_sliding = sliding_window_svd(x)
-    print("  [4/6] Sliding-window SVD")
+    print("  [4/7] Sliding-window SVD")
 
-    # 5. Band-pass filter
+    # 5. ML-assisted SVD
+    x_ml, S_ml, kept_ml = svd_denoise_ml(x, clf, fs=FS)
+    print(f"  [5/7] ML-assisted SVD (kept {len(kept_ml)} components: {list(kept_ml)})")
+
+    # 6. Band-pass filter
     x_bandpass = bandpass_filter(x)
-    print("  [5/6] Band-pass filter (1-40 Hz)")
+    print("  [6/7] Band-pass filter (1-40 Hz)")
 
-    # 6. Notch filter
+    # 7. Notch filter
     x_notch = notch_filter(x)
-    print("  [6/6] Notch filter (60 Hz)")
+    print("  [7/7] Notch filter (60 Hz)")
 
     # -- Phase 4: Evaluate -----------------------------------------------------
     print("\nPhase 4 -- Computing metrics ...")
@@ -82,6 +92,7 @@ def main():
         evaluate(s, x, x_svd_adaptive, f"SVD adaptive k={k_auto}"),
         evaluate(s, x, x_mc,           f"Multi-ch SVD k={k_spatial}"),
         evaluate(s, x, x_sliding,      "Sliding-win SVD"),
+        evaluate(s, x, x_ml,           "ML-assisted SVD"),
         evaluate(s, x, x_bandpass,     "Band-pass 1-40"),
         evaluate(s, x, x_notch,        "Notch 60 Hz"),
     ]
@@ -99,16 +110,16 @@ def main():
 
     plot_time_comparison(
         t,
-        [x, x_svd_adaptive, x_bandpass, s],
-        ["Noisy", f"SVD adaptive (k={k_auto})", "Band-pass", "True clean"],
+        [x, x_svd_adaptive, x_ml, x_bandpass, s],
+        ["Noisy", f"SVD adaptive (k={k_auto})", "ML-assisted SVD", "Band-pass", "True clean"],
         "Signal Comparison - Synthetic EEG (first 2 s)",
         "signal_comparison.png",
     )
 
     plot_time_comparison(
         t,
-        [x, x_sliding, x_mc, s],
-        ["Noisy", "Sliding-window SVD", "Multi-ch SVD", "True clean"],
+        [x, x_sliding, x_mc, x_ml, s],
+        ["Noisy", "Sliding-window SVD", "Multi-ch SVD", "ML-assisted SVD", "True clean"],
         "Novel Methods - Synthetic EEG (first 2 s)",
         "novel_methods_comparison.png",
     )
@@ -124,8 +135,8 @@ def main():
 
     # PSD
     plot_psd_comparison(
-        [x, x_svd_adaptive, x_bandpass, x_notch, s],
-        ["Noisy", "SVD adaptive", "Band-pass", "Notch 60 Hz", "True clean"],
+        [x, x_svd_adaptive, x_ml, x_bandpass, x_notch, s],
+        ["Noisy", "SVD adaptive", "ML-assisted SVD", "Band-pass", "Notch 60 Hz", "True clean"],
         FS,
         "Power Spectral Density - Method Comparison",
         "psd_comparison.png",

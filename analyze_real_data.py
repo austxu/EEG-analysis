@@ -18,9 +18,11 @@ from eeg_denoising.denoising import (
     svd_denoise_adaptive,
     multichannel_svd_denoise,
     sliding_window_svd,
+    svd_denoise_ml,
     bandpass_filter,
     notch_filter,
 )
+from eeg_denoising.ml_helpers import train_svd_classifier
 
 os.makedirs(PLOTS_DIR, exist_ok=True)
 
@@ -126,22 +128,30 @@ def main():
     # -- Apply denoising methods -----------------------------------------------
     print("\nApplying denoising methods ...")
 
+    # Train ML classifier for this sampling rate
+    print("  Training ML classifier ...")
+    clf = train_svd_classifier(fs=fs)
+
     # 1. SVD adaptive (single-channel SSA)
     x_svd, S_svd, k_svd = svd_denoise_adaptive(x, L=50)
-    print(f"  [1/4] Adaptive SVD (k={k_svd})")
+    print(f"  [1/5] Adaptive SVD (k={k_svd})")
 
     # 2. Multi-channel spatial SVD
     data_mc, S_mc, k_mc = multichannel_svd_denoise(data)
     x_mc = data_mc[ch_idx]
-    print(f"  [2/4] Multi-channel SVD (k={k_mc})")
+    print(f"  [2/5] Multi-channel SVD (k={k_mc})")
 
     # 3. Sliding-window SVD
     x_sw = sliding_window_svd(x, fs=fs)
-    print("  [3/4] Sliding-window SVD")
+    print("  [3/5] Sliding-window SVD")
 
-    # 4. Band-pass + Notch combo
+    # 4. ML-assisted SVD
+    x_ml, S_ml, kept_ml = svd_denoise_ml(x, clf, fs=fs, L=50)
+    print(f"  [4/5] ML-assisted SVD (kept {len(kept_ml)} components)")
+
+    # 5. Band-pass + Notch combo
     x_filt = notch_filter(bandpass_filter(x, fs=fs), fs=fs)
-    print("  [4/4] Band-pass (1-40 Hz) + Notch (60 Hz)")
+    print("  [5/5] Band-pass (1-40 Hz) + Notch (60 Hz)")
 
     # -- Proxy Metrics ---------------------------------------------------------
     print("\nProxy Metrics (no ground truth):")
@@ -149,6 +159,7 @@ def main():
         "SVD adaptive": x_svd,
         "Multi-ch SVD": x_mc,
         "Sliding-win SVD": x_sw,
+        "ML-assisted SVD": x_ml,
         "BP + Notch": x_filt,
     }
 
@@ -164,22 +175,22 @@ def main():
     print("\nGenerating plots ...")
 
     plot_real_time(
-        t, [x, x_svd, x_filt],
-        ["Original", f"SVD adaptive (k={k_svd})", "BP+Notch"],
+        t, [x, x_svd, x_ml, x_filt],
+        ["Original", f"SVD adaptive (k={k_svd})", "ML-assisted SVD", "BP+Notch"],
         f"Real EEG - {ch_name} (first 3 s)",
         "real_signal_comparison.png",
     )
 
     plot_real_time(
-        t, [x, x_sw, x_mc],
-        ["Original", "Sliding-win SVD", "Multi-ch SVD"],
+        t, [x, x_sw, x_mc, x_ml],
+        ["Original", "Sliding-win SVD", "Multi-ch SVD", "ML-assisted SVD"],
         f"Real EEG - Novel Methods - {ch_name} (first 3 s)",
         "real_novel_comparison.png",
     )
 
     plot_real_psd(
-        [x, x_svd, x_sw, x_filt],
-        ["Original", "SVD adaptive", "Sliding-win SVD", "BP+Notch"],
+        [x, x_svd, x_sw, x_ml, x_filt],
+        ["Original", "SVD adaptive", "Sliding-win SVD", "ML-assisted SVD", "BP+Notch"],
         fs,
         f"PSD - Real EEG ({ch_name})",
         "real_psd_comparison.png",
