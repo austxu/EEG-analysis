@@ -32,7 +32,7 @@ os.makedirs(PLOTS_DIR, exist_ok=True)
 
 def load_physionet_eeg(subject=1, runs=[1]):
     """Fetch PhysioNet EEG BCI data and return raw MNE object + numpy arrays."""
-    print(f"Fetching PhysioNet BCI data — Subject {subject}, Runs {runs} …")
+    print(f"Fetching PhysioNet BCI data -- Subject {subject}, Runs {runs} ...")
     raw_fnames = eegbci.load_data(subject, runs)
     raw = mne.io.read_raw_edf(raw_fnames[0], preload=True, verbose=False)
     eegbci.standardize(raw)
@@ -52,7 +52,7 @@ def band_power(x, fs, low, high):
     """Total power in [low, high] Hz via Welch."""
     f, Pxx = sig.welch(x, fs=fs, nperseg=min(512, len(x)))
     mask = (f >= low) & (f <= high)
-    return np.trapz(Pxx[mask], f[mask])
+    return np.trapezoid(Pxx[mask], f[mask])
 
 
 def powerline_reduction_db(original, denoised, fs, freq=60, bw=2):
@@ -65,7 +65,7 @@ def powerline_reduction_db(original, denoised, fs, freq=60, bw=2):
 
 
 def alpha_beta_preservation(original, denoised, fs):
-    """Ratio of alpha+beta power after/before denoising (ideally ≈ 1.0)."""
+    """Ratio of alpha+beta power after/before denoising (ideally ~1.0)."""
     ab_before = band_power(original, fs, 8, 30)
     ab_after = band_power(denoised, fs, 8, 30)
     if ab_before == 0:
@@ -82,14 +82,14 @@ def plot_real_time(t, signals, labels, title, fname):
     for s, lab in zip(signals, labels):
         ax.plot(t, s, label=lab, alpha=0.8, linewidth=0.6)
     ax.set_xlabel("Time (s)")
-    ax.set_ylabel("Amplitude (µV)")
+    ax.set_ylabel("Amplitude (uV)")
     ax.set_title(title)
     ax.legend(fontsize=8, loc="upper right")
     ax.set_xlim(t[0], min(t[-1], 3))  # zoom first 3 s
     fig.tight_layout()
     fig.savefig(os.path.join(PLOTS_DIR, fname), dpi=150)
     plt.close(fig)
-    print(f"  → saved {fname}")
+    print(f"  -> saved {fname}")
 
 
 def plot_real_psd(signals, labels, fs, title, fname):
@@ -105,7 +105,7 @@ def plot_real_psd(signals, labels, fs, title, fname):
     fig.tight_layout()
     fig.savefig(os.path.join(PLOTS_DIR, fname), dpi=150)
     plt.close(fig)
-    print(f"  → saved {fname}")
+    print(f"  -> saved {fname}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -125,7 +125,7 @@ def main():
     print(f"\nAnalysing channel: {ch_name}")
 
     # ── Apply denoising methods ───────────────────────────────────────────────
-    print("\nApplying denoising methods …")
+    print("\nApplying denoising methods ...")
 
     # 1. SVD adaptive (single-channel SSA)
     x_svd, S_svd, k_svd = svd_denoise_adaptive(x, L=50)
@@ -142,7 +142,7 @@ def main():
 
     # 4. Band-pass + Notch combo
     x_filt = notch_filter(bandpass_filter(x, fs=fs), fs=fs)
-    print("  [4/4] Band-pass (1–40 Hz) + Notch (60 Hz)")
+    print("  [4/4] Band-pass (1-40 Hz) + Notch (60 Hz)")
 
     # ── Proxy Metrics ─────────────────────────────────────────────────────────
     print("\nProxy Metrics (no ground truth):")
@@ -153,28 +153,28 @@ def main():
         "BP + Notch": x_filt,
     }
 
-    header = f"{'Method':<20} {'60Hz Reduction(dB)':>20} {'α/β Preservation':>18}"
+    header = f"{'Method':<20} {'60Hz Reduction(dB)':>20} {'a/b Preservation':>18}"
     print(header)
-    print("─" * len(header))
+    print("-" * len(header))
     for name, denoised in methods.items():
         plr = powerline_reduction_db(x, denoised, fs)
         abp = alpha_beta_preservation(x, denoised, fs)
         print(f"{name:<20} {plr:>20.2f} {abp:>18.4f}")
 
     # ── Plots ─────────────────────────────────────────────────────────────────
-    print("\nGenerating plots …")
+    print("\nGenerating plots ...")
 
     plot_real_time(
         t, [x, x_svd, x_filt],
         ["Original", f"SVD adaptive (k={k_svd})", "BP+Notch"],
-        f"Real EEG — {ch_name} (first 3 s)",
+        f"Real EEG - {ch_name} (first 3 s)",
         "real_signal_comparison.png",
     )
 
     plot_real_time(
         t, [x, x_sw, x_mc],
         ["Original", "Sliding-win SVD", "Multi-ch SVD"],
-        f"Real EEG — Novel Methods — {ch_name} (first 3 s)",
+        f"Real EEG - Novel Methods - {ch_name} (first 3 s)",
         "real_novel_comparison.png",
     )
 
@@ -182,11 +182,11 @@ def main():
         [x, x_svd, x_sw, x_filt],
         ["Original", "SVD adaptive", "Sliding-win SVD", "BP+Notch"],
         fs,
-        f"PSD — Real EEG ({ch_name})",
+        f"PSD - Real EEG ({ch_name})",
         "real_psd_comparison.png",
     )
 
-    print("\n✓ All done.  Plots saved to:", os.path.abspath(PLOTS_DIR))
+    print("\n[DONE] All done.  Plots saved to:", os.path.abspath(PLOTS_DIR))
 
 
 if __name__ == "__main__":
